@@ -28,48 +28,42 @@ exports.signup = (req, res, next) => {
     });
 };
 
-exports.login = (req, res, next) => {
+exports.login = async (req, res, next) => {
   const { email, password } = req.body;
   let loadedUser;
   // console.log(User.findOne({ email }));
-  User.findOne({ email })
-    .then((user) => {
-      console.log(user);
-      if (!user) {
-        const error = new Error("Email is not found");
-        error.statusCode = 401;
-        throw error;
-      }
-      loadedUser = user;
-      return bcrypt.compare(password, user.password);
-    })
-    ?.then((isEqual) => {
-      if (!isEqual) {
-        // console.log("sad");
-        const error = new Error("Wrong Password");
-        error.statusCode = 401;
-        throw error;
-      }
-      const token = jwt.sign(
-        {
-          email: loadedUser.email,
-          userId: loadedUser._id.toString(),
-        },
-        "secrete",
-        { expiresIn: "1h" }
-      );
-      res.status(200).json({ token, userId: loadedUser._id.toString() });
-      return;
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        // console.log("error");
-        err.statusCode = 500;
-      }
-      console.log(err, "ASD");
-      next(err);
-      return err;
-    });
+  try {
+    let user = await User.findOne({ email });
+    if (!user) {
+      const error = new Error("Email is not found");
+      error.statusCode = 401;
+      throw error;
+    }
+    loadedUser = user;
+    let isEqual = await bcrypt.compare(password, user.password);
+    if (!isEqual) {
+      // console.log("sad");
+      const error = new Error("Wrong Password");
+      error.statusCode = 401;
+      throw error;
+    }
+    const token = jwt.sign(
+      {
+        email: loadedUser.email,
+        userId: loadedUser._id.toString(),
+      },
+      "secrete",
+      { expiresIn: "1h" }
+    );
+    res.status(200).json({ token, userId: loadedUser._id.toString() });
+    return;
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+    return err;
+  }
 };
 exports.getUserStatus = async (req, res, next) => {
   try {
@@ -79,13 +73,17 @@ exports.getUserStatus = async (req, res, next) => {
       error.statusCode = 404;
       throw error;
     }
+
     res.status(200).json({ status: user.status });
+    console.log(res);
+    return;
   } catch (err) {
     if (!err.statusCode) {
       err.statusCode = 500;
     }
     next(err);
   }
+  return;
 };
 
 exports.updateUserStatus = async (req, res, next) => {

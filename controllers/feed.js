@@ -23,59 +23,52 @@ exports.getPosts = async (req, res, next) => {
   }
 };
 
-exports.createPost = (req, res, next) => {
+exports.createPost = async (req, res, next) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const error = new Error("Validation failed ");
-    error.statusCode = 422;
-    throw error;
-  }
-  if (!req.file) {
-    const error = new Error("No image provided");
-    error.statusCode = 422;
-    throw error;
-  }
-  let imageUrl = req.file.path.replace("\\", "/");
-  const { title, content } = req.body;
-  let topic;
-  let creator;
-  const post = new Post({
-    title,
-    content,
-    imageUrl,
-    creator: req.userId,
-  });
-  post
-    .save()
-    .then((result) => {
-      topic = result;
-      return User.findById(req.userId);
-    })
-    .then((user) => {
-      creator = user;
-      user.posts.push(topic);
-      return user.save();
-    })
-    .then((result) => {
-      io.getIo().emit("posts", {
-        action: "create",
-        post: { ...post._doc, creator: { _id: req.userId, name: result.name } },
-      });
-      console.log(result);
-      res.status(201).json({
-        message: "Post Created Succesfully",
-        post: topic,
-        creator,
-      });
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500;
-      }
-      next(err);
+  try {
+    if (!errors.isEmpty()) {
+      const error = new Error("Validation failed ");
+      error.statusCode = 422;
+      throw error;
+    }
+    if (!req.file) {
+      const error = new Error("No image provided");
+      error.statusCode = 422;
+      throw error;
+    }
+    let imageUrl = req.file.path.replace("\\", "/");
+    const { title, content } = req.body;
+    let topic;
+    let creator;
+    const post = new Post({
+      title,
+      content,
+      imageUrl,
+      creator: req.userId,
     });
+    topic = await post.save();
+    let user = await User.findById(req.userId);
+    creator = user;
+    user.posts.push(topic);
+    let result = user.save();
+    io.getIo().emit("posts", {
+      action: "create",
+      post: { ...post._doc, creator: { _id: req.userId, name: result.name } },
+    });
+    console.log(result);
+    res.status(201).json({
+      message: "Post Created Succesfully",
+      post: topic,
+      creator,
+    });
+    return result;
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
 };
-
 exports.getPost = (req, res, next) => {
   const { postId } = req.params;
   Post.findById(postId)
