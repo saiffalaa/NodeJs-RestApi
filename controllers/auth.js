@@ -31,8 +31,10 @@ exports.signup = (req, res, next) => {
 exports.login = (req, res, next) => {
   const { email, password } = req.body;
   let loadedUser;
+  // console.log(User.findOne({ email }));
   User.findOne({ email })
     .then((user) => {
+      console.log(user);
       if (!user) {
         const error = new Error("Email is not found");
         error.statusCode = 401;
@@ -41,8 +43,9 @@ exports.login = (req, res, next) => {
       loadedUser = user;
       return bcrypt.compare(password, user.password);
     })
-    .then((isEqual) => {
+    ?.then((isEqual) => {
       if (!isEqual) {
+        // console.log("sad");
         const error = new Error("Wrong Password");
         error.statusCode = 401;
         throw error;
@@ -60,8 +63,10 @@ exports.login = (req, res, next) => {
     })
     .catch((err) => {
       if (!err.statusCode) {
+        // console.log("error");
         err.statusCode = 500;
       }
+      console.log(err, "ASD");
       next(err);
       return err;
     });
